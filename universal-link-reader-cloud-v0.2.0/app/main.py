@@ -24,8 +24,11 @@ from .security import RejectedURL, IG_HOSTS, canonical_instagram, validate_mp4_u
 
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / 'static' / 'demo'
+PROOF_SHORTCODE = 'Db5BK0xCh6b'
+PROOF = ROOT / 'static' / 'reel-proof' / PROOF_SHORTCODE
+PROOF_ROOT = '/proof/' + PROOF_SHORTCODE
 DATA_ROOT = Path(os.environ.get('ULR_DATA_ROOT', '/tmp/ulr_reports'))
-RELEASE = '0.2.1'
+RELEASE = '0.3.0'
 app = FastAPI(title='Universal Link Reader Cloud Proof of Concept', version=RELEASE,
               docs_url=None, redoc_url=None)
 
@@ -106,6 +109,10 @@ class JobRequest(BaseModel):
 
 DEMO_ASSETS = {'/demo/report.pdf', '/demo/contact.jpg', '/demo/meta.json'}
 DEMO_FRAME_PATH = re.compile(r'/demo/frame/frame_[0-9]{2}\.jpg\Z')
+PROOF_ALLOWED = frozenset({PROOF_ROOT, PROOF_ROOT + '/status.json',
+                           PROOF_ROOT + '/report.pdf', PROOF_ROOT + '/contact.jpg',
+                           PROOF_ROOT + '/meta.json'})
+PROOF_FRAME_PATH = re.compile(r'/proof/Db5BK0xCh6b/frame/frame_[0-9]{2}\.jpg\Z')
 
 @app.middleware('http')
 async def visibility_and_cache_headers(request: Request, call_next):
@@ -123,6 +130,9 @@ async def visibility_and_cache_headers(request: Request, call_next):
         if 'X-Robots-Tag' in result.headers:
             del result.headers['X-Robots-Tag']
         result.headers['Cache-Control'] = 'public, max-age=300'
+    elif path in PROOF_ALLOWED or PROOF_FRAME_PATH.fullmatch(path):
+        result.headers['X-Robots-Tag'] = 'noindex, nofollow'
+        result.headers['Cache-Control'] = 'public, max-age=30, s-maxage=300'
     elif path == '/healthz':
         result.headers['X-Robots-Tag'] = 'noindex, nofollow'
         result.headers['Cache-Control'] = 'public, max-age=15'
@@ -138,17 +148,19 @@ def robots_txt():
 
 @app.get('/healthz')
 def health():
-    return {'status': 'ok', 'version': RELEASE, 'demo_available': (DEMO / 'report.pdf').is_file()}
+    return {'status': 'ok', 'version': RELEASE, 'demo_available': (DEMO / 'report.pdf').is_file(),
+            'reel_proof_status': _proof_status().get('status', 'not_built')}
 
 
 @app.get('/', response_class=HTMLResponse)
 def home():
     return '''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="font-family:system-ui;max-width:720px;margin:3rem auto;padding:0 1rem">
-<h1>Universal Link Reader Cloud PoC v0.2.1</h1>
+<h1>Universal Link Reader Cloud PoC v0.3.0</h1>
 <p>Proof of concept only. No MCP needed to READ public output. Creating new jobs requires a private admin token; remote jobs are disabled by default.</p>
 <p><a href="/demo">Open synthetic video frame report</a> | <a href="/demo/report.pdf">PDF</a> | <a href="/demo/meta.json">JSON</a></p>
-<p>This synthetic demonstration does not prove Instagram access from a cloud host.</p></body></html>'''
+<p>This synthetic demonstration does not prove Instagram access from a cloud host.</p>
+<p><a href="/proof/Db5BK0xCh6b">Experimental exact-Reel cloud-build result</a> | <a href="/proof/Db5BK0xCh6b/status.json">Build diagnostic</a></p></body></html>'''
 
 
 @app.get('/demo', response_class=HTMLResponse)
@@ -189,6 +201,74 @@ def _get_asset(directory: Path, name: str, media_type: str):
     if not file.is_file():
         raise HTTPException(status_code=404)
     return FileResponse(file, media_type=media_type)
+
+
+
+
+def _proof_status():
+    status_file = PROOF / 'status.json'
+    if not status_file.is_file():
+        return {'status': 'not_built', 'shortcode': PROOF_SHORTCODE}
+    try:
+        return json.loads(status_file.read_text(encoding='utf-8'))
+    except (ValueError, OSError):
+        return {'status': 'invalid_build_status', 'shortcode': PROOF_SHORTCODE}
+
+
+def _proof_ready():
+    state = _proof_status()
+    if state.get('status') != 'frames_ready' or not (PROOF / 'report.pdf').is_file():
+        raise HTTPException(status_code=503, detail={
+            'error': 'reel_proof_unavailable',
+            'status_url': PROOF_ROOT + '/status.json',
+            'failed_stage': state.get('failed_stage', 'build_not_ready')})
+    return state
+
+
+@app.get('/proof/Db5BK0xCh6b', response_class=HTMLResponse)
+def proof_landing():
+    status = _proof_status()
+    if status.get('status') != 'frames_ready':
+        stage = escape(status.get('failed_stage', 'not_built'))
+        return HTMLResponse('<h1>Instagram cloud proof unavailable</h1>'
+                            '<p>Cloud build did not obtain verified video frames. '
+                            'This does not imply the Reel is private or deleted.</p>'
+                            f'<p>Stage: {stage}</p>'
+                            f'<p><a href="{PROOF_ROOT}/status.json">Build diagnostic JSON</a></p>',
+                            status_code=503)
+    manifest = json.loads((PROOF / 'metadata.json').read_text(encoding='utf8'))
+    return HTMLResponse(render_html(manifest, PROOF_ROOT, demo=False))
+
+
+@app.get('/proof/Db5BK0xCh6b/status.json')
+def proof_status():
+    return JSONResponse(_proof_status())
+
+
+@app.get('/proof/Db5BK0xCh6b/meta.json')
+def proof_meta():
+    _proof_ready()
+    return _get_asset(PROOF, 'metadata.json', 'application/json')
+
+
+@app.get('/proof/Db5BK0xCh6b/report.pdf')
+def proof_pdf():
+    _proof_ready()
+    return _get_asset(PROOF, 'report.pdf', 'application/pdf')
+
+
+@app.get('/proof/Db5BK0xCh6b/contact.jpg')
+def proof_contact():
+    _proof_ready()
+    return _get_asset(PROOF, 'contact.jpg', 'image/jpeg')
+
+
+@app.get('/proof/Db5BK0xCh6b/frame/{file_name}')
+def proof_frame(file_name: str):
+    _proof_ready()
+    if not re.fullmatch(r'frame_[0-9]{2}\.jpg', file_name):
+        raise HTTPException(status_code=404)
+    return _get_asset(PROOF, file_name, 'image/jpeg')
 
 
 @app.post('/api/jobs', status_code=202)

@@ -1,4 +1,4 @@
-# Universal Link Reader Cloud PoC v0.2.1
+# Universal Link Reader Cloud PoC v0.3.0
 
 **用途：** 將「可取得嘅公開影片 → 真正解碼影格 → 有時間戳 PDF／HTML」放到免費雲端服務，研究 ChatGPT iPhone **一般對話**可否透過原生網頁工具直接讀取影格，毋須 Windows MCP。
 
@@ -85,3 +85,6 @@ curl -X POST 'https://<your-service>.onrender.com/api/jobs' \
 
 ## v0.2.1 visibility and cache policy
 Only built-in synthetic demo content can be indexed and briefly cached; health is briefly cached but noindex. Private job results, APIs, failed responses and unknown endpoints remain noindex/no-store. The demo now exposes robots.txt. These hints cannot guarantee that ChatGPT native web search can access new Vercel domains. Remote video jobs remain disabled. The GitHub subfolder retains its v0.2.0 name for Vercel Root Directory compatibility.
+
+## v0.3.0: fixed-Reel build-time proof
+Vercel Docker build attempts exact public Reel Db5BK0xCh6b with maximum 40 MiB download and 6 sampled frames. It writes /proof/Db5BK0xCh6b/status.json on either success or failure. On success, provides /proof/Db5BK0xCh6b/report.pdf and contact.jpg. Raw MP4 is deleted. On failure diagnostic reports stage without unsafe URL or credential echo. Runtime jobs remain disabled and no public URL triggers processing. The existing GitHub root directory name v0.2.0 is preserved for Vercel configuration.

@@ -108,7 +108,7 @@ def test_instagram_gate(client, monkeypatch):
 
 def test_health_and_home(client):
     assert client.get('/healthz').status_code == 200
-    assert 'v0.2.1' in client.get('/').text
+    assert 'v0.3.0' in client.get('/').text
     assert client.get('/demo').status_code == 200
     assert client.get('/demo/report.pdf').status_code == 200
     assert client.get('/demo/report.pdf').content.startswith(b'%PDF')
@@ -143,7 +143,7 @@ def test_demo_robots_meta_and_crawl_rules(client):
 
 def test_health_is_short_cache_but_not_indexable(client):
     response = client.get('/healthz')
-    assert response.json()['version'] == '0.2.1'
+    assert response.json()['version'] == '0.3.0'
     assert response.headers['X-Robots-Tag'] == 'noindex, nofollow'
     assert response.headers['Cache-Control'] == 'public, max-age=15'
 
