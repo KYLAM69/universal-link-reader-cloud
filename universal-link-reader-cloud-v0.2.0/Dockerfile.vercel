@@ -1,0 +1,35 @@
+# Universal Link Reader Cloud PoC v0.2.0 — Vercel demo-only container.
+# Keep this file in the Vercel project's Root Directory, beside requirements.txt.
+# Vercel project Environment Variable: PORT=8080 (Production / Preview).
+# This deliberately exposes read-only bundled demo media, NOT background video jobs.
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    ULR_DATA_ROOT=/tmp/ulr_reports \
+    ULR_ENABLE_REMOTE_JOBS=0 \
+    ULR_ENABLE_INSTAGRAM=0 \
+    PORT=8080
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /srv
+COPY requirements.txt ./requirements.txt
+RUN python -m pip install --no-cache-dir -r requirements.txt
+COPY app/ ./app/
+COPY scripts/ ./scripts/
+COPY static/ ./static/
+
+# Build static proof-of-concept images and PDF into image at build time.
+RUN python scripts/build_demo.py
+
+# Use unprivileged app user; Vercel must route to project PORT=8080.
+RUN useradd --no-create-home --uid 10001 --shell /usr/sbin/nologin ulr \
+    && chown -R ulr:ulr /srv
+USER ulr
+EXPOSE 8080
+
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1"]
