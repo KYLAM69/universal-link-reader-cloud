@@ -7,6 +7,7 @@ import hmac
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import shutil
 from threading import Lock
@@ -14,7 +15,7 @@ import time
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from .media import fetch_mp4, instagram_media_source, process_mp4
@@ -24,7 +25,7 @@ from .security import RejectedURL, IG_HOSTS, canonical_instagram, validate_mp4_u
 ROOT = Path(__file__).resolve().parents[1]
 DEMO = ROOT / 'static' / 'demo'
 DATA_ROOT = Path(os.environ.get('ULR_DATA_ROOT', '/tmp/ulr_reports'))
-RELEASE = '0.2.0'
+RELEASE = '0.2.1'
 app = FastAPI(title='Universal Link Reader Cloud Proof of Concept', version=RELEASE,
               docs_url=None, redoc_url=None)
 
@@ -103,13 +104,36 @@ class JobRequest(BaseModel):
     url: str = Field(min_length=12, max_length=4096)
 
 
+DEMO_ASSETS = {'/demo/report.pdf', '/demo/contact.jpg', '/demo/meta.json'}
+DEMO_FRAME_PATH = re.compile(r'/demo/frame/frame_[0-9]{2}\.jpg\Z')
+
 @app.middleware('http')
-async def no_cache_headers(request: Request, call_next):
+async def visibility_and_cache_headers(request: Request, call_next):
     result = await call_next(request)
-    result.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
-    result.headers['Cache-Control'] = 'no-store'
+    path = request.url.path
     result.headers['X-Content-Type-Options'] = 'nosniff'
+    if not 200 <= result.status_code < 300:
+        result.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
+        result.headers['Cache-Control'] = 'no-store'
+    elif path in ('/', '/demo') or path in DEMO_ASSETS or DEMO_FRAME_PATH.fullmatch(path):
+        if 'X-Robots-Tag' in result.headers:
+            del result.headers['X-Robots-Tag']
+        result.headers['Cache-Control'] = 'public, max-age=60, s-maxage=300'
+    elif path == '/robots.txt':
+        if 'X-Robots-Tag' in result.headers:
+            del result.headers['X-Robots-Tag']
+        result.headers['Cache-Control'] = 'public, max-age=300'
+    elif path == '/healthz':
+        result.headers['X-Robots-Tag'] = 'noindex, nofollow'
+        result.headers['Cache-Control'] = 'public, max-age=15'
+    else:
+        result.headers['X-Robots-Tag'] = 'noindex, nofollow, noarchive'
+        result.headers['Cache-Control'] = 'no-store'
     return result
+
+@app.get('/robots.txt', response_class=PlainTextResponse)
+def robots_txt():
+    return 'User-agent: *\nAllow: /demo\nDisallow: /api/\nDisallow: /r/\n'
 
 
 @app.get('/healthz')
@@ -121,7 +145,7 @@ def health():
 def home():
     return '''<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="font-family:system-ui;max-width:720px;margin:3rem auto;padding:0 1rem">
-<h1>Universal Link Reader Cloud PoC v0.2.0</h1>
+<h1>Universal Link Reader Cloud PoC v0.2.1</h1>
 <p>Proof of concept only. No MCP needed to READ public output. Creating new jobs requires a private admin token; remote jobs are disabled by default.</p>
 <p><a href="/demo">Open synthetic video frame report</a> | <a href="/demo/report.pdf">PDF</a> | <a href="/demo/meta.json">JSON</a></p>
 <p>This synthetic demonstration does not prove Instagram access from a cloud host.</p></body></html>'''

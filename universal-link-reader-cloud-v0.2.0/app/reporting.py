@@ -85,8 +85,9 @@ def render_html(data: dict, base: str, demo: bool = False) -> str:
         for frame in data['frames']
     )
     notice = '<p><strong>Synthetic test source only. NOT an Instagram Reel.</strong></p>' if demo else ''
+    robots = 'index,follow' if demo else 'noindex,nofollow,noarchive'
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ULR - {label}</title><meta name="robots" content="noindex,nofollow"></head>
+<title>ULR - {label}</title><meta name="robots" content="{robots}"></head>
 <body style="font-family:system-ui,Arial,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;background:#111827;color:#f9fafb">
 <h1>Universal Link Reader Cloud PoC</h1>{notice}<p>{label} | {kind} | duration: {data['duration_seconds']:.2f} seconds</p>
 <p>Source: {source}</p><p><a style="color:#7dd3fc" href="{escape(base)}/report.pdf">Timestamped PDF report</a> | <a style="color:#7dd3fc" href="{escape(base)}/contact.jpg">Contact sheet</a> | <a style="color:#7dd3fc" href="{escape(base)}/meta.json">Evidence metadata JSON</a></p>

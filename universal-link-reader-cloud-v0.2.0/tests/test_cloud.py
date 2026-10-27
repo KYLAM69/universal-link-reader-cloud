@@ -108,7 +108,7 @@ def test_instagram_gate(client, monkeypatch):
 
 def test_health_and_home(client):
     assert client.get('/healthz').status_code == 200
-    assert 'v0.2.0' in client.get('/').text
+    assert 'v0.2.1' in client.get('/').text
     assert client.get('/demo').status_code == 200
     assert client.get('/demo/report.pdf').status_code == 200
     assert client.get('/demo/report.pdf').content.startswith(b'%PDF')
@@ -121,8 +121,37 @@ def test_health_and_home(client):
     assert data['frames_opened_by_model'] is False
     assert client.get('/demo/frame/../../secret').status_code == 404
     assert client.get('/demo/frame/secrets.jpg').status_code == 404
-    assert response.headers.get('X-Robots-Tag') == 'noindex, nofollow, noarchive'
+    assert response.headers.get('X-Robots-Tag') is None
+    assert response.headers['Cache-Control'].startswith('public, ')
 
+
+@pytest.mark.parametrize('path', ['/', '/demo', '/demo/report.pdf', '/demo/contact.jpg',
+                                  '/demo/meta.json', '/demo/frame/frame_01.jpg'])
+def test_only_public_demo_is_indexable(client, path):
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.headers.get('X-Robots-Tag') is None
+    assert 'public' in response.headers['Cache-Control']
+
+def test_demo_robots_meta_and_crawl_rules(client):
+    assert '<meta name="robots" content="index,follow">' in client.get('/demo').text
+    robots = client.get('/robots.txt')
+    assert robots.status_code == 200
+    assert 'Allow: /demo' in robots.text
+    assert 'Disallow: /r/' in robots.text
+    assert 'Disallow: /api/' in robots.text
+
+def test_health_is_short_cache_but_not_indexable(client):
+    response = client.get('/healthz')
+    assert response.json()['version'] == '0.2.1'
+    assert response.headers['X-Robots-Tag'] == 'noindex, nofollow'
+    assert response.headers['Cache-Control'] == 'public, max-age=15'
+
+@pytest.mark.parametrize('path', ['/api/jobs', '/r/unknown-long-random-id', '/demo/secret.jpg', '/missing'])
+def test_private_or_error_paths_never_index_or_cache(client, path):
+    response = client.get(path)
+    assert response.headers['X-Robots-Tag'] == 'noindex, nofollow, noarchive'
+    assert response.headers['Cache-Control'] == 'no-store'
 
 def test_unknown_job(client):
     response = client.get('/r/unknown-long-random-id')
@@ -183,3 +212,5 @@ def test_authorized_async_job_complete_roundtrip(client, monkeypatch, tmp_path):
     assert client.get(root_url + '/contact.jpg').status_code == 200
     assert 'Sampled frames do not establish' in client.get(root_url).text
     assert 'does not prove ChatGPT opened' in client.get(root_url).text
+    assert client.get(root_url).headers['Cache-Control'] == 'no-store'
+    assert client.get(root_url + '/report.pdf').headers['X-Robots-Tag'] == 'noindex, nofollow, noarchive'

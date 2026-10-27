@@ -1,4 +1,4 @@
-# Universal Link Reader Cloud PoC v0.2.0 — Vercel demo-only container.
+# Universal Link Reader Cloud PoC v0.2.1 — Vercel demo-only container.
 # Keep this file in the Vercel project's Root Directory, beside requirements.txt.
 # Vercel project Environment Variable: PORT=8080 (Production / Preview).
 # This deliberately exposes read-only bundled demo media, NOT background video jobs.

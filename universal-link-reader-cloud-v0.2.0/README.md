@@ -1,4 +1,4 @@
-# Universal Link Reader Cloud PoC v0.2.0
+# Universal Link Reader Cloud PoC v0.2.1
 
 **用途：** 將「可取得嘅公開影片 → 真正解碼影格 → 有時間戳 PDF／HTML」放到免費雲端服務，研究 ChatGPT iPhone **一般對話**可否透過原生網頁工具直接讀取影格，毋須 Windows MCP。
 
@@ -82,3 +82,6 @@ curl -X POST 'https://<your-service>.onrender.com/api/jobs' \
 5. 最終自動化：Plugin 唔經 Windows MCP 點樣授權啟動雲端任務（仍屬待研究）。
 
 每階段需獨立實證，唔可跳步宣稱完成。
+
+## v0.2.1 visibility and cache policy
+Only built-in synthetic demo content can be indexed and briefly cached; health is briefly cached but noindex. Private job results, APIs, failed responses and unknown endpoints remain noindex/no-store. The demo now exposes robots.txt. These hints cannot guarantee that ChatGPT native web search can access new Vercel domains. Remote video jobs remain disabled. The GitHub subfolder retains its v0.2.0 name for Vercel Root Directory compatibility.
