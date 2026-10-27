@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: universal-link-reader-cloud-poc
+    runtime: docker
+    plan: free
+    autoDeployTrigger: off
+    healthCheckPath: /healthz
+    envVars:
+      - key: ULR_ADMIN_TOKEN
+        generateValue: true
+      - key: ULR_ENABLE_REMOTE_JOBS
+        value: "0"
+      - key: ULR_ENABLE_INSTAGRAM
+        value: "0"
+      - key: ULR_MAX_VIDEO_BYTES
+        value: "41943040"
+      - key: ULR_JOB_TTL_SECONDS
+        value: "1800"

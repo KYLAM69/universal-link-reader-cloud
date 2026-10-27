@@ -1,0 +1,33 @@
+{
+  "label": "Synthetic moving test pattern",
+  "video_verified": true,
+  "frames_extracted": 4,
+  "frames_opened_by_model": false,
+  "audio_transcribed": false,
+  "frames": [
+    {
+      "second": 0.5,
+      "filename": "frame_01.jpg"
+    },
+    {
+      "second": 1.5,
+      "filename": "frame_02.jpg"
+    },
+    {
+      "second": 2.5,
+      "filename": "frame_03.jpg"
+    },
+    {
+      "second": 3.5,
+      "filename": "frame_04.jpg"
+    }
+  ],
+  "duration_seconds": 4.0,
+  "width": 320,
+  "height": 240,
+  "audio_stream_present": false,
+  "source_kind": "synthetic",
+  "source_url": "generated_on_server",
+  "status": "frames_ready",
+  "exact_post_matched": false
+}
